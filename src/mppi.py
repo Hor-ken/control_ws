@@ -13,7 +13,7 @@ class MPPI():
         dim_state: int,
         dim_control: int,
         dynamics,
-        stage_cost,
+        state_stage_cost,
         terminal_cost,
         u_min,
         u_max,
@@ -27,7 +27,7 @@ class MPPI():
         self.dim_state = dim_state
         self.dim_control = dim_control
         self.dynamics = dynamics
-        self.stage_cost = stage_cost
+        self.state_stage_cost = state_stage_cost
         self.terminal_cost = terminal_cost
         self.u_min = u_min
         self.u_max = u_max
@@ -49,18 +49,19 @@ class MPPI():
 
         return input_series, state_series
 
-    def calc_cost(self, input_series, state_series):
+    def calc_cost(self, input_series, u_nominal, state_series):
         cost = 0
         #you have to check the num of loops
         for i in range(self.total_steps):
-            cost += self.stage_cost(state_series[i])
+            cost += self.state_stage_cost(state_series[i]) + self.temp_lambda * (input_series[i] - u_nominal[i].T * self.sigma.linalg.inv * input_series[i] + u_nominal[i].T * self.sigma.linalg.inv * u_nominal[i])
         cost += self.terminal_cost(state_series[-1])
         return cost
 
     def calc_weight(self, cost, u_opt, input_series):
         sum = 0
+        u_nominal = np.zeros(self.dim_control, self.total_steps)
         for i in range(self.total_steps):
-            sum += u_opt[i].T * self.sigma.linalg.inv * input_series[i]
+            sum += (u_opt[i].T - u_nominal[i].T) * self.sigma.linalg.inv * input_series[i]
         weight = math.exp(-(cost / self.temp_lambda) - sum) / self.eta
         return weight
 
@@ -81,6 +82,6 @@ class MPPI():
 
         for i in range(self.num_samples):
             u_opt = normalized_weight_array[i] * input_series_array[:, :, i]
-            
+
 
 
